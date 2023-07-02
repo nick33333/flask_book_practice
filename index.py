@@ -6,8 +6,8 @@ from flask import (
     redirect,
     session,
     url_for,
-    request,
-    flash
+    flash,
+    session
 )
 from flask_bootstrap import Bootstrap
 import pickle
@@ -19,6 +19,12 @@ from tslearn.clustering import TimeSeriesKMeans
 import plotly
 import plotly.express as px
 import json
+from flask_wtf import Form
+from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired
+
+from wtforms import StringField, SubmitField
+from wtforms.validators import InputRequired
 
 '''
 To use flask shell:
@@ -31,44 +37,48 @@ UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'csv'}
 
 app = Flask(__name__)
-# bootstrap = Bootstrap(app)
+bootstrap = Bootstrap(app)
 
 app.secret_key = 'This is your secret key to utilize session in Flask'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-# Hardcoded stuff for now, should allow user to select these settings from a drop bar
-app.config['animal'] = 'bird' # bird and mammal are options
-app.config['preprocessing'] = "msmc_rtp_it" # msmc, msmc_it, and msmc_rtp_it (realtime processed and interpolated) should be my options so far
-app.config['k'] = 7 # k= 2, ..., 15, ... models should be ready
-
-# Will fill up this dict with some fat models using specified settings
-km_dict = dict()
-km_dict[app.config['k']] = TimeSeriesKMeans.from_pickle(f"models/{app.config['animal']}_{app.config['preprocessing']}_k{app.config['k']}_km.pkl")
-
-# My testing model
-app.config[f"k{app.config['k']}"] = km_dict[app.config['k']] # Should be a tslearn TimeSeriesKMeans obj
-
-@app.route("/") # app.route decorator adds url to app's URL map
-def hello_world():
-    '''
-    URL map works by mapping URLs to view functions
-    ex:
-    >>> from index import app
-    >>> app.url_map
-    >>> app.url_map
-    Map([<Rule '/' (HEAD, OPTIONS, GET) -> hello_world>,
-    <Rule '/static/<filename>' (HEAD, OPTIONS, GET) -> static>,
-    <Rule '/<name>' (HEAD, OPTIONS, GET) -> user>])
-    >>>
-    '''
-    print('request:')
-    print(request)
-    print(request.files)
-    print(session)
-    return "<p>Hello, World!</p>"
+# # Hardcoded stuff for now, should allow user to select these settings from a drop bar
 
 
-@app.route('/index', methods=['GET', 'POST'])
+class NameForm(FlaskForm):
+    name = StringField('What is your name?', validators=[InputRequired()])
+    submit = SubmitField('Submit')
+
+# class CSVForm(FlaskForm):
+#     '''
+#     See https://flask-wtf.readthedocs.io/en/1.0.x/form/#file-uploads
+#     '''
+#     csv_file = FileField(validators=FileRequired())
+    
+
+@app.route('/', methods=['GET', 'POST'])
 def index():
+    '''
+    This scheme follows post, redirect, get
+    '''
+    form = NameForm()
+    if form.validate_on_submit():
+        old_name = session.get('name')
+        if old_name is not None and old_name != form.name.data:
+            print("bingo bongo")
+            flash('Looks like you have changed your name!')
+        session['name'] = form.name.data
+        print('name:', session['name'])
+        print('session:', session)
+        print('url: ', url_for('index'))
+        form.name.data = ''
+        return redirect(url_for('index'))
+    return render_template("index.html", form=form, name=session.get('name'))
+
+
+
+
+@app.route('/read_csv1', methods=['GET', 'POST'])
+def read_csv1():
     if request.method == 'POST':
         # upload file flask
         f = request.files.get('file')
@@ -78,8 +88,9 @@ def index():
         f.save(os.path.join(app.config['UPLOAD_FOLDER'],
                             data_filename))
         session['uploaded_data_file_path'] = os.path.join(app.config['UPLOAD_FOLDER'], data_filename)
-        return render_template('index2.html')
-    return render_template("index.html")
+        return render_template('read_csv2.html')
+    return render_template("read_csv1.html")
+
 
 @app.route('/show_data')
 def showData():
@@ -119,6 +130,14 @@ def user(name):
     '''
     return render_template('user.html', name=name)
 
+@app.route('/form', methods=['GET', 'POST'])
+def form():
+    form = NameForm()
+    name = None
+    if form.validate_on_submit():
+        name = form.name.data
+        form.name.data = ''
+    return render_template('form.html', form=form, name=name)
 
 @app.errorhandler(404)
 def page_not_found(e):

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
 
-{% block title %}Flasky - Page not found{% endblock %}
+{% block title %}Flasky - Form{% endblock %}
 
 {% block navbar %}
 <div class="navbar navbar-inverse" role="navigation">
@@ -26,6 +27,24 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Not Found</h1>
+    <h1>This form thingy #1</h1>
+
+    <form method="POST">
+        {{ form.name.label }} {{ form.name() }}
+        {{ form.submit() }}
+    </form>
+       
+    <h1>This form thingy #2</h1>
+
+    <form method="POST">
+        {{ form.name.label }} {{ form.name(id='my-text-field') }}
+        {{ form.submit() }}
+    </form>
+       
+       
+    <h1>This form thingy #3</h1>
+    {{ wtf.quick_form(form) }}
+    
+       
 </div>
 {% endblock %}
